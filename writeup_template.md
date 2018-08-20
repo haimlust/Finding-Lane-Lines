@@ -2,17 +2,7 @@
 # **Finding Lane Lines on the Road -pipeline description** 
 
 
----
 
-### Reflection
-
-### 1. Describe your pipeline. As part of the description, explain how you modified the draw_lines() function.
-
-My pipeline consisted of 5 steps. First, I converted the images to grayscale, then I .... 
-
-In order to draw a single line on the left and right lanes, I modified the draw_lines() function by ...
-
-If you'd like to include images to show how the pipeline works, here is how to include an image: 
 
 
 
@@ -24,20 +14,20 @@ show_images(images, cmap=None)
 ```
  -Loding Packages
 #  Yellow-White RGB Color masking
-Creating  a mask to deploy on images which basicly check which pixels are in the range of white or Yellow 			    	   colors and keep them while removing the other pixels
+Creating  a mask to deploy on images which basicly check which pixels are in the range of white or Yellow 			    	   colors( via RGB boundries ) and keep them while removing the other pixels(who are out of the boundry)
  
 ```python
-select_rgb_white_yellow(image)
+select_rgb_color(image)
 ```
 # Canny Edge Detection
 ## Gray Scailing
 Creating Gray Scaling filter which take imge (after the Yellow-White RGB Color masking) and return it with gray values, This is because the Canny edge detection measures the magnitude of pixel intensity changes or gradients.
 
 ```
-convert_gray_scale(image)
+convert_gray_scale(image,color_boundries)
 ```
 ## Gaussian Smoothing 
- blurring an image with normal Kernel( in the form of a matrix). Applying the Smoothing on gray scale images.
+ blurring an image with normal Kernel( in the form of a matrix) in order to reduce noise . We are  Applying the Smoothing on gray scale images.
 ```
 apply_smoothing(image, kernel_size=15)
 ```
@@ -49,16 +39,15 @@ looping over all pixals we classify them as followes:
 - If a pixel gradient value is below the lower threshold, then it is rejected.
 - If the pixel gradient is between the two thresholds, then it will be accepted only if it is connected to a pixel that is above the upper threshold.
 
-These two threshold values are empirically determined.  Basically, you will need to define them by trials and errors.
+We defined them by trials and errors.
 
-I first set the `low_threshold` to zero and then adjust the `high_threshold`.   If `high_threshold` is too high, you find no edges.  If `high_threshold` is too low, you find too many edges.  Once you find a good `high_threshold`, adjust the `low_threshold` to discard the weak edges (noises) connected to the strong edges.
 
 ```
 detect_edges(image, low_threshold=50, high_threshold=150)
 ```
 # Region of Interest Selection
-When finding lane lines, we don't need to check the sky and the hills.  
-Roughly speaking, we are interested in the aread surrounded by the red lines below:
+When finding lane lines, we  need  to filter the backround.  
+Roughly speaking, we are interested in the area surrounded by the red lines below:
 
 ![Region of Interest](http://joe-schueller.github.io/img/region-of-interest.png)
 
@@ -97,9 +86,7 @@ draw_lines(image, lines, color=[255, 0, 0], thickness=2, make_copy=True)
 ```
 which gets an image and a list of lines and draw the lines on the image.
 ## Averaging and Extrapolating Lines
-### *I used  others code at some point for this section*
-There are multiple lines detected for a lane line.  We  can come up with an averaged line for that.
-Also, some lane lines are only partially recognized.  We  extrapolate the line to cover full lane line length.
+### *I   was  helped by  the code in https://github.com/naokishibuya/car-finding-lane-lines of the autor   Naoki Shibuya when I debugged my code in this section*
 
 We want two lane lines: one for the left and the other for the right.  The left lane should have a positive slope, and the right lane should have a negative slope.  Therefore, we'll collect positive slope lines and negative slope lines separately and take averages.
 
@@ -109,7 +96,7 @@ average_slope_intercept(lines) #list of lines->left_lane, right_lane
 
 
 ### Lines ->Lanes
-Using the above `average_lines` function, we can calculate average slope and intercept for the left and right lanes of each image. We still need to convert the slope and intercept into pixel points Let's define functions to help us with that.
+Using the above `average_lines` function, we can calculate average slope and intercept for the left and right lanes of each image. We still need to convert the slope and intercept into pixel points wewill  define functions to help us with that.
 
 
 
@@ -141,7 +128,7 @@ draw_lane_lines(image, lines, color=[255, 0, 0], thickness=20)
 
 ### 2. Identify potential shortcomings with your current pipeline
 
-Shadows on the lanes may interrupt our  color masking scheme. 
+Shadows on the lanes may interrupt our  color masking scheme.  as can be observed in in the challenge video 
 
 Only  the straight lane lines are detected and not lines  with curvature.  
 
