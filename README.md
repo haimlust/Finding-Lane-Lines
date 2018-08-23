@@ -1,56 +1,141 @@
-# **Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
-
-Overview
----
-
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
-
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
-
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
-
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
+# **Finding Lane Lines on the Road -pipeline description** 
 
 
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
-
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
 
 
-The Project
----
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
+# Preparation
+The following took place :
+-Loading and printing Test Images
+```python
+show_images(images, cmap=None)
+```
+ -Loding Packages
+#  Yellow-White RGB Color masking
+Creating  a mask to deploy on images which basicly check which pixels are in the range of white or Yellow 			    	   colors( via RGB boundries ) and keep them while removing the other pixels(who are out of the boundry)
+ 
+```python
+select_rgb_color(image)
+```
+# Canny Edge Detection
+## Gray Scailing
+Creating Gray Scaling filter which take imge (after the Yellow-White RGB Color masking) and return it with gray values, This is because the Canny edge detection measures the magnitude of pixel intensity changes or gradients.
 
-**Step 2:** Open the code in a Jupyter Notebook
+```
+convert_gray_scale(image,color_boundries)
+```
+## Gaussian Smoothing 
+ blurring an image with normal Kernel( in the form of a matrix) in order to reduce noise . We are  Applying the Smoothing on gray scale images.
+```
+apply_smoothing(image, kernel_size=15)
+```
+## Edge Detection:
+procedure that recives 2 tresholds(upper,lower) and an image (the blured image from previous operation)
+looping over all pixals we classify them as followes:
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out [Udacity's free course on Anaconda and Jupyter Notebooks](https://classroom.udacity.com/courses/ud1111) to get started.
+- If a pixel gradient is higher than the upper threshold, the pixel is accepted as an edge
+- If a pixel gradient value is below the lower threshold, then it is rejected.
+- If the pixel gradient is between the two thresholds, then it will be accepted only if it is connected to a pixel that is above the upper threshold.
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+We defined them by trials and errors.
 
-`> jupyter notebook`
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+```
+detect_edges(image, low_threshold=50, high_threshold=150)
+```
+# Region of Interest Selection
+When finding lane lines, we  need  to filter the backround.  
+Roughly speaking, we are interested in the area surrounded by the red lines below:
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
+![Region of Interest](http://joe-schueller.github.io/img/region-of-interest.png)
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+So, we exclude outside the region of interest by apply a mask.
+
+```python
+def region_of_interest(img, vertices):
+    """
+    Applies an image mask.
+    
+    Only keeps the region of the image defined by the polygon
+    formed from `vertices`. The rest of the image is set to black.
+    `vertices` should be a numpy array of integer points.
+    """
+```
+
+## Hough Transform Line Detection
+Using `cv2.HoughLinesP` to detect lines in the edge images.
+
+There are several parameters to tweak and tune:
+
+- rho – Distance resolution of the accumulator in pixels.
+- theta – Angle resolution of the accumulator in radians.
+- threshold – Accumulator threshold parameter. Only those lines are returned that get enough votes (> `threshold`).
+- minLineLength – Minimum line length. Line segments shorter than that are rejected.
+- maxLineGap – Maximum allowed gap between points on the same line to link them.
+
+We will give a wrapper to `cv2.HoughLinesP`  which output  a list of detected lines(each line represented by two points). 
+
+```
+hough_lines(image)
+```
+which get an image and return list of line (`line=(x1,y1),(x2,y2)`)
+```
+draw_lines(image, lines, color=[255, 0, 0], thickness=2, make_copy=True)
+```
+which gets an image and a list of lines and draw the lines on the image.
+## Averaging and Extrapolating Lines
+### *I   was  helped by  the code in https://github.com/naokishibuya/car-finding-lane-lines of the autor   Naoki Shibuya when I debugged my code in this section*
+
+We want two lane lines: one for the left and the other for the right.  The left lane should have a positive slope, and the right lane should have a negative slope.  Therefore, we'll collect positive slope lines and negative slope lines separately and take averages.
+
+```
+average_slope_intercept(lines) #list of lines->left_lane, right_lane
+```
+
+
+### Lines ->Lanes
+Using the above `average_lines` function, we can calculate average slope and intercept for the left and right lanes of each image. We still need to convert the slope and intercept into pixel points wewill  define functions to help us with that.
+
+
+
+```python
+def make_line_points(*args, line):
+    """
+    Convert a line represented in slope and intercept into pixel points
+    """
+    return ((x1, y1), (x2, y2))
+
+def lane_lines(image, lines):
+    left_lane, right_lane = average_slope_intercept(lines)
+    
+    .
+    .
+    .
+
+    left_line  = make_line_points(y1, y2, left_lane)
+    right_line = make_line_points(y1, y2, right_lane)
+    
+    return left_line, right_line
+```
+### Redefining draw_lines function
+Our `draw_lines` except a list of lines as the second parameter.  Each line is a list of 4 values (x1, y1, x2, y2).   List of lines transform to two lines(i.e lanes) and a drawing on the image take place
+
+```
+draw_lane_lines(image, lines, color=[255, 0, 0], thickness=20)
+```
+
+### 2. Identify potential shortcomings with your current pipeline
+
+Shadows on the lanes may interrupt our  color masking scheme.  as can be observed in in the challenge video 
+
+Only  the straight lane lines are detected and not lines  with curvature.  
+
+
+
+### 3. Suggest possible improvements to your pipeline
+
+Transforming color channels from RGB to HSV
+In  order to handle curving lines We'll need to use perspective transformation and also poly fitting lane lines rather than fitting to straight lines.
 
